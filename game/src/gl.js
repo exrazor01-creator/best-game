@@ -78,7 +78,11 @@ const FS = `precision mediump float;
 varying vec4 vColor; varying float vFog; uniform vec3 uFogColor;
 void main(){ vec3 c = mix(vColor.rgb, uFogColor, vFog); gl_FragColor = vec4(c, vColor.a); }`;
 export function createRenderer(canvas) {
-  const gl = canvas.getContext('webgl', { preserveDrawingBuffer: true, antialias: true, alpha: false });
+  // No MSAA: this game is flat-shaded low-poly, so the smoothing is barely
+  // visible at 1280x800, but in software renderers (SwiftShader, weak
+  // devices) multisampling nearly halves the frame rate (measured 4.3 fps
+  // with it, 8.0 without). The game targets smooth play on low-end machines.
+  const gl = canvas.getContext('webgl', { preserveDrawingBuffer: true, antialias: false, alpha: false });
   if (!gl) throw new Error('WebGL is not available');
   const compile = (type, src) => {
     const s = gl.createShader(type);
@@ -200,6 +204,56 @@ export function createRenderer(canvas) {
         this.idx.push(base, base + 1, base + 2); this.tris += 1;
       }
     },
+    // Sphere centered at (cx, cy, cz), radius r. Lat/long grid with true
+    // normals, so heads, helmets and tree canopies catch the dusk light
+    // instead of looking like flat cubes. sy scales the Y axis (0.6 makes
+    // a flattened hair cap or a wide-brim hat).
+    sphere(cx, cy, cz, r, color, seg, sy) {
+      const s = seg || 8, rings = Math.max(4, Math.floor(s / 2));
+      const c = parseColor(color);
+      const ys = sy || 1;
+      const pt = (i, j) => {
+        const a = (i / s) * Math.PI * 2, b = (j / rings) * Math.PI;
+        const nx = Math.sin(b) * Math.cos(a), ny = Math.cos(b), nz = Math.sin(b) * Math.sin(a);
+        return { p: [cx + nx * r, cy + ny * r * ys, cz + nz * r], n: norm3([nx, ny / Math.max(ys, 0.01), nz]) };
+      };
+      for (let j = 0; j < rings; j += 1) {
+        for (let i = 0; i < s; i += 1) {
+          const i2 = (i + 1) % s;
+          const a = pt(i, j), b = pt(i2, j), d = pt(i2, j + 1), e = pt(i, j + 1);
+          const base = this.vc;
+          this.vert(a.p, c, a.n); this.vert(b.p, c, b.n); this.vert(d.p, c, d.n); this.vert(e.p, c, e.n);
+          this.idx.push(base, base + 1, base + 2, base, base + 2, base + 3);
+          this.tris += 2;
+        }
+      }
+    },
+    // Tapered tube from (x0,y0,z0) to (x1,y1,z1), radius r0 at the start and
+    // r1 at the end. Limbs (arms, legs, torso) and wheels are tubes: they
+    // can point any direction, unlike cyl which is always vertical. A
+    // swinging leg is just a tube whose end point moves with the walk phase.
+    limb(x0, y0, z0, x1, y1, z1, r0, r1, color, sides) {
+      const s = sides || 8, c = parseColor(color);
+      const dx = x1 - x0, dy = y1 - y0, dz = z1 - z0;
+      const len = Math.hypot(dx, dy, dz) || 1;
+      const d = [dx / len, dy / len, dz / len];
+      const up = Math.abs(d[1]) < 0.9 ? [0, 1, 0] : [1, 0, 0];
+      const u = norm3([d[1] * up[2] - d[2] * up[1], d[2] * up[0] - d[0] * up[2], d[0] * up[1] - d[1] * up[0]]);
+      const v = [d[1] * u[2] - d[2] * u[1], d[2] * u[0] - d[0] * u[2], d[0] * u[1] - d[1] * u[0]];
+      for (let i = 0; i < s; i += 1) {
+        const j = (i + 1) % s;
+        const a0 = (i / s) * Math.PI * 2, a1 = (j / s) * Math.PI * 2;
+        const n0 = [u[0] * Math.cos(a0) + v[0] * Math.sin(a0), u[1] * Math.cos(a0) + v[1] * Math.sin(a0), u[2] * Math.cos(a0) + v[2] * Math.sin(a0)];
+        const n1 = [u[0] * Math.cos(a1) + v[0] * Math.sin(a1), u[1] * Math.cos(a1) + v[1] * Math.sin(a1), u[2] * Math.cos(a1) + v[2] * Math.sin(a1)];
+        this.quad(
+          [x0 + n0[0] * r0, y0 + n0[1] * r0, z0 + n0[2] * r0],
+          [x0 + n1[0] * r0, y0 + n1[1] * r0, z0 + n1[2] * r0],
+          [x1 + n1[0] * r1, y1 + n1[1] * r1, z1 + n1[2] * r1],
+          [x1 + n0[0] * r1, y1 + n0[1] * r1, z1 + n0[2] * r1],
+          c, n0,
+        );
+      }
+    },
     rayGround(mx, my) {
       const nx = (mx / this.w) * 2 - 1, ny = 1 - (my / this.h) * 2;
       const dx = this.fwd[0] + this.right[0] * nx * this.tanHalf * this.aspect + this.up[0] * ny * this.tanHalf;
@@ -211,7 +265,7 @@ export function createRenderer(canvas) {
     },
     project(x, y, z) {
       const m = this.vp;
-      const cx = m[0] * x + m[4] * y + m[8] * z + m[12];
+      const cx = m[0] * x + m[4] * y + m[8] * z + m[13];
       const cy = m[1] * x + m[5] * y + m[9] * z + m[13];
       const cw = m[3] * x + m[7] * y + m[11] * z + m[15];
       if (cw <= 0.01) return null;

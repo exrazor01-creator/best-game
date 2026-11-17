@@ -2,6 +2,9 @@ import { AVENUES, STREETS, PALETTE, VEHICLES, VEHICLE_ORDER, ROAD_W, TUNE } from
 import { dist, angleDiff, pick, clamp } from './random.js';
 import { pointInBuilding } from './world.js';
 import { damageCar, addParticles, addSkid } from './combat.js';
+const SKIN_TONES = ['#f1c27d', '#e0ac69', '#c68642', '#8d5524'];
+const HAIR_COLORS = ['#1a1a1a', '#4a2c14', '#c9a227', '#8a8d93', '#6b3fa0', '#ff2e88'];
+const PANTS_COLORS = ['#1f2a4a', '#2c3e50', '#3b2f2f', '#1a1a1a', '#34495e', '#4a3b2a'];
 export function spawnCar(G, x, z, kind, driver) {
   const def = VEHICLES[kind] || { max: 560, accel: 520, turn: 2.6, hp: 100, r: 24, color: '#c0392b' };
   const car = {
@@ -37,10 +40,14 @@ export function spawnTraffic(G) {
 }
 export function spawnPeds(G) {
   for (let i = 0; i < TUNE.pedCount; i += 1) {
+    // Every walker gets their own look — skin, hair, shirt, pants, height
+    // and build — so the crowd reads as people, not clones of one box.
     G.peds.push({
       x: 100 + G.rng() * 3000, z: 100 + G.rng() * 2200, angle: 0, speed: 0,
       kind: 'walker', hp: 100, tx: 0, tz: 0, waitT: 0, fleeT: 0,
-      color: pick(G.rng, ['#e74c3c', '#3498db', '#f39c12', '#9b59b6', '#1abc9c', '#ff2e88', '#00e5ff', '#ffd23e']), seed: G.rng(),
+      color: pick(G.rng, ['#e74c3c', '#3498db', '#f39c12', '#9b59b6', '#1abc9c', '#ff2e88', '#00e5ff', '#ffd23e']),
+      skin: pick(G.rng, SKIN_TONES), hair: pick(G.rng, HAIR_COLORS), pants: pick(G.rng, PANTS_COLORS),
+      h: 0.9 + G.rng() * 0.2, w: 0.9 + G.rng() * 0.25, seed: G.rng(),
     });
   }
 }
