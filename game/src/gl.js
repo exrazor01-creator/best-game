@@ -27,12 +27,16 @@ function matMul(a, b) {
   return o;
 }
 const norm3 = (v) => { const l = Math.hypot(v[0], v[1], v[2]) || 1; return [v[0] / l, v[1] / l, v[2] / l]; };
+// Dusk-first sky: Nova City is shot at golden dusk, never pitch black. The
+// horizon stays warm purple-orange through the evening so the skyline, the
+// fog and the neon all read on camera. Night only settles past 0.9.
 const SKY_KEYS = [
-  { t: 0.00, sky: [0.03, 0.03, 0.10], sun: [0.35, 0.25, 0.75], amb: [0.20, 0.18, 0.34], dir: [0.3, 0.6, 0.4] },
-  { t: 0.30, sky: [0.05, 0.03, 0.12], sun: [0.45, 0.30, 0.85], amb: [0.24, 0.20, 0.38], dir: [0.5, 0.7, 0.3] },
-  { t: 0.55, sky: [0.10, 0.05, 0.18], sun: [0.85, 0.45, 0.55], amb: [0.32, 0.26, 0.40], dir: [0.8, 0.4, 0.2] },
-  { t: 0.75, sky: [0.03, 0.03, 0.10], sun: [0.35, 0.25, 0.75], amb: [0.20, 0.18, 0.34], dir: [-0.4, 0.6, 0.4] },
-  { t: 1.00, sky: [0.03, 0.03, 0.10], sun: [0.35, 0.25, 0.75], amb: [0.20, 0.18, 0.34], dir: [-0.3, 0.6, 0.4] },
+  { t: 0.00, sky: [0.10, 0.07, 0.22], sun: [0.90, 0.55, 0.75], amb: [0.48, 0.44, 0.62], dir: [0.3, 0.6, 0.4] },
+  { t: 0.30, sky: [0.22, 0.10, 0.30], sun: [1.00, 0.60, 0.50], amb: [0.55, 0.48, 0.64], dir: [0.5, 0.7, 0.3] },
+  { t: 0.55, sky: [0.38, 0.18, 0.32], sun: [1.00, 0.62, 0.42], amb: [0.62, 0.53, 0.65], dir: [0.8, 0.4, 0.2] },
+  { t: 0.75, sky: [0.30, 0.14, 0.36], sun: [0.90, 0.50, 0.70], amb: [0.57, 0.49, 0.64], dir: [-0.4, 0.6, 0.4] },
+  { t: 0.90, sky: [0.12, 0.08, 0.24], sun: [0.60, 0.40, 0.80], amb: [0.44, 0.40, 0.58], dir: [-0.3, 0.6, 0.4] },
+  { t: 1.00, sky: [0.08, 0.06, 0.18], sun: [0.50, 0.35, 0.75], amb: [0.40, 0.36, 0.54], dir: [-0.3, 0.6, 0.4] },
 ];
 export function skyAt(tod) {
   let a = SKY_KEYS[0], b = SKY_KEYS[SKY_KEYS.length - 1];
@@ -43,7 +47,7 @@ export function skyAt(tod) {
   const mix = (x, y) => [lerp(x[0], y[0], f), lerp(x[1], y[1], f), lerp(x[2], y[2], f)];
   return {
     sky: mix(a.sky, b.sky), fog: mix(a.sky, b.sky), sun: mix(a.sun, b.sun), amb: mix(a.amb, b.amb),
-    dir: norm3(mix(a.dir, b.dir)), night: true, fogNear: 260, fogFar: 1900,
+    dir: norm3(mix(a.dir, b.dir)), night: true, fogNear: 300, fogFar: 3000,
   };
 }
 const colorCache = new Map();
@@ -127,6 +131,13 @@ export function createRenderer(canvas) {
       gl.uniform1f(U.fogn, sky.fogNear);
       gl.uniform1f(U.fogf, sky.fogFar);
       gl.uniform1f(U.emi, 0);
+    },
+    // Sky elements (sun, horizon glow, stars) must not be fogged out, so the
+    // renderer lets the scene turn fog off for them and back on after. Call
+    // only with an empty batch (right after flush()).
+    setFog(near, far) {
+      gl.uniform1f(U.fogn, near);
+      gl.uniform1f(U.fogf, far);
     },
     setEmissive(v) {
       if (v !== this.emissive) { this.flush(); this.emissive = v; gl.uniform1f(U.emi, v); }

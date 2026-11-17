@@ -25,27 +25,31 @@ function driveFor(G, stepFn, seconds, target) {
 export function stageShot(name, G, stepFn) {
   G.timeOfDay = 0.55;
   if (name === 'hero') {
-    // Skyline hero: hypercar on avenue 1600 driving north toward the
-    // financial district towers, nitro on, camera behind the car.
+    // Dusk hero: hypercar on avenue 1600 driving north into the financial
+    // district towers, nitro on, camera close behind the car.
     startMission(G, 0);
     skipDialog(G);
     const car = G.cars.find((c) => c.kind === 'vortex');
     if (car) { G.player.x = car.x; G.player.z = car.z; G.player.inCar = car; car.driver = 'player'; car.nitro = 3; }
     G.player.x = 1600; G.player.z = 2000;
     if (G.player.inCar) { G.player.inCar.x = 1600; G.player.inCar.z = 2000; G.player.inCar.angle = -Math.PI / 2; }
-    driveFor(G, stepFn, 1, { x: 1600, z: 1100 });
+    driveFor(G, stepFn, 1.5, { x: 1600, z: 1100 });
     return { screen: 'playing' };
   }
   if (name === 'race') {
     // Mid-race: Neon Trial, first straight east along street 1900 with
-    // nitro, JINX racing behind. 3s keeps the car on the opening straight.
+    // nitro, JINX racing alongside. The race gate pylons are drawn in 3D.
+    // Short drive so the car is still on the opening straight with the
+    // gate ahead, and JINX is pulled up beside the player for the frame.
     startMission(G, 2);
     skipDialog(G);
     const car = G.cars.find((c) => c.kind === 'vortex');
     if (car) { G.player.x = car.x; G.player.z = car.z; G.player.inCar = car; car.driver = 'player'; car.nitro = 3; }
     G.player.x = 800; G.player.z = 1900;
     if (G.player.inCar) { G.player.inCar.x = 800; G.player.inCar.z = 1900; G.player.inCar.angle = 0; }
-    driveFor(G, stepFn, 2, null);
+    const rival = (G.rivals || [])[0];
+    if (rival) { rival.car.x = 860; rival.car.z = 1952; rival.car.angle = 0; rival.car.speed = 500; }
+    driveFor(G, stepFn, 1.2, null);
     return { screen: 'playing' };
   }
   if (name === 'action') {
@@ -62,8 +66,10 @@ export function stageShot(name, G, stepFn) {
     driveFor(G, stepFn, 2.5, null);
     return { screen: 'playing' };
   }
-  G.cameraOverride = { eye: [1600, 500, 2300], target: [1600, 40, 1100] };
-  G.timeOfDay = 0.85;
+  // World panorama at golden dusk (0.62), camera lower and closer so the
+  // skyline, the lit windows and the streets all read.
+  G.cameraOverride = { eye: [1600, 420, 2250], target: [1600, 30, 1000] };
+  G.timeOfDay = 0.62;
   for (let i = 0; i < 60; i += 1) stepFn(STEP);
   return { screen: 'playing' };
 }

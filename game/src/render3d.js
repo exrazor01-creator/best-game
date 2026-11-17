@@ -51,7 +51,8 @@ export function updateCamera(G, dt) {
     return;
   }
   const inCar = p.inCar;
-  const cfg = !inCar ? { dist: 170, height: 105 } : inCar.kind === 'bike' ? { dist: 210, height: 120 } : { dist: 235, height: 135 };
+  // Close chase cam: the car and the street fill the frame, the city feels big.
+  const cfg = !inCar ? { dist: 130, height: 80 } : inCar.kind === 'bike' ? { dist: 165, height: 95 } : { dist: 185, height: 105 };
   const heading = inCar ? inCar.angle : p.angle;
   cam.heading += angleDiff(cam.heading, heading) * (1 - Math.exp(-dt * 2.2));
   const px = p.x, pz = p.z;
@@ -82,6 +83,17 @@ export function updateCamera(G, dt) {
     cam.eye[0] += (G.rng() - 0.5) * s; cam.eye[1] += (G.rng() - 0.5) * s * 0.6; cam.eye[2] += (G.rng() - 0.5) * s;
   }
 }
+// Flat rotated quad on the ground (headlight pools, wet-road streaks).
+function beam(R, x, z, angle, len, wid, color) {
+  const fx = Math.cos(angle), fz = Math.sin(angle), rx = -fz, rz = fx;
+  const x0 = x - fx * len / 2, z0 = z - fz * len / 2;
+  const x1 = x + fx * len / 2, z1 = z + fz * len / 2;
+  R.quad(
+    [x0 - rx * wid / 2, 0.16, z0 - rz * wid / 2], [x0 + rx * wid / 2, 0.16, z0 + rz * wid / 2],
+    [x1 + rx * wid / 2, 0.16, z1 + rz * wid / 2], [x1 - rx * wid / 2, 0.16, z1 - rz * wid / 2],
+    color, [0, 1, 0],
+  );
+}
 function drawCar(R, car, time) {
   const x = car.x, z = car.z, a = car.angle;
   if (!car.dead) R.flat(x - 26, z - 20, 52, 40, 0.2, [0, 0, 0, 0.3]);
@@ -89,6 +101,8 @@ function drawCar(R, car, time) {
   const len = car.kind === 'truck' ? 74 : car.kind === 'bike' ? 42 : car.kind === 'hypercar' ? 56 : car.kind === 'armored' ? 60 : 52;
   const wid = car.kind === 'bike' ? 12 : car.kind === 'truck' ? 28 : car.kind === 'armored' ? 30 : 26;
   const h = car.kind === 'truck' ? 18 : car.kind === 'armored' ? 20 : car.kind === 'hypercar' ? 10 : car.kind === 'bike' ? 8 : 13;
+  const cc = parseColor(car.color);
+  R.flat(x - 30, z - 18, 60, 36, 0.15, [cc[0], cc[1], cc[2], 0.16]);
   R.box(x, h / 2 + 3, z, len, h, wid, car.color, a);
   if (car.kind === 'bike') {
     R.box(x, 18, z, 16, 12, 10, '#2f3542', a);
@@ -99,9 +113,11 @@ function drawCar(R, car, time) {
   for (const s of [-1, 1]) for (const t of [-1, 1]) {
     R.box(x + fx * len * 0.32 * s + rx * wid * 0.5 * t, 5, z + fz * len * 0.32 * s + rz * wid * 0.5 * t, 10, 10, 6, '#0a0a0a', a);
   }
-  R.setEmissive(0.7);
-  R.box(x + fx * len * 0.5, 8, z + fz * len * 0.5, 3, 5, wid * 0.7, '#fff6b0', a);
-  R.box(x - fx * len * 0.5, 8, z - fz * len * 0.5, 3, 5, wid * 0.7, '#ff2e4d', a);
+  // Headlight pool on the wet road ahead + big bright lamps and taillights.
+  beam(R, x + fx * (len / 2 + 55), z + fz * (len / 2 + 55), a, 110, 34, [1, 0.92, 0.62, 0.10]);
+  R.setEmissive(0.9);
+  R.box(x + fx * len * 0.5, 8, z + fz * len * 0.5, 4, 6, wid * 0.7, '#fff6b0', a);
+  R.box(x - fx * len * 0.5, 8, z - fz * len * 0.5, 4, 6, wid * 0.7, '#ff2e4d', a);
   R.setEmissive(0);
   if (car.kind === 'hypercar') R.box(x - Math.cos(a) * 26, h + 4, z - Math.sin(a) * 26, 10, 3, 24, '#0a0a0a', a);
   if (car.kind === 'hover') R.box(x, 2, z, len * 0.8, 3, wid * 0.8, '#00e5ff', a);
@@ -150,6 +166,20 @@ function drawPlayer(R, G, time) {
   R.box(x, 13 + bob, z, 17, 3, 15, '#00e5ff', p.angle);
   R.setEmissive(0);
 }
+// Lit windows on one building face: most windows glow warm gold or cyan so
+// the facades read as inhabited, not black boxes.
+function winFace(R, b, face, h) {
+  const cols = Math.max(2, Math.floor(face.len / 40));
+  for (let i = 0; i < cols; i += 1) {
+    const off = -face.len / 2 + 12 + (i * (face.len - 24)) / Math.max(1, cols - 1);
+    const on = ((i * 7 + b.floors + face.idx * 3) % 4) !== 0;
+    const col = !on ? '#141830' : ((i + face.idx) % 3 === 0 ? '#7de8ff' : '#ffd97a');
+    const wx = face.along === 'x' ? face.cx + off : face.cx;
+    const wz = face.along === 'z' ? face.cz + off : face.cz;
+    const w = face.along === 'x' ? 10 : 2, d = face.along === 'x' ? 2 : 10;
+    R.box(wx, h * 0.5, wz, w, h * 0.55, d, col);
+  }
+}
 export function render3D(G, R) {
   const time = G.time, sky = skyAt(G.timeOfDay);
   R.setCamera(G.camera.eye, G.camera.target);
@@ -165,7 +195,7 @@ export function render3D(G, R) {
     R.flat(0, s - ROAD_W / 2 - 14, WORLD.w, 14, 0.12, PALETTE.sidewalk);
     R.flat(0, s + ROAD_W / 2, WORLD.w, 14, 0.12, PALETTE.sidewalk);
   }
-  R.setEmissive(0.8);
+  R.setEmissive(1);
   for (const a of AVENUES) for (let z = 100; z < WORLD.h - 60; z += 200) R.flat(a - 2, z, 4, 60, 0.14, PALETTE.roadLine);
   for (const s of STREETS) for (let x = 100; x < WORLD.w - 60; x += 200) R.flat(x, s - 2, 60, 4, 0.14, PALETTE.roadLine);
   R.setEmissive(0);
@@ -182,18 +212,24 @@ export function render3D(G, R) {
     R.box(cx, h / 2, cz, b.w, h, b.d, b.color);
     R.box(cx, h + 3, cz, b.w - 10, 6, b.d - 10, '#0d1020');
     if (b.floors >= 3) {
-      R.setEmissive(0.55);
-      const cols = Math.max(2, Math.floor(b.w / 40));
-      for (let i = 0; i < cols; i += 1) {
-        const wx = b.x + 12 + (i * (b.w - 24)) / Math.max(1, cols - 1);
-        const on = ((i * 7 + b.floors) % 3) !== 0;
-        R.box(wx, h * 0.5, cz + b.d / 2 + 1, 10, h * 0.55, 2, on ? '#ffd97a' : '#1a2038');
-      }
+      R.setEmissive(0.7);
+      winFace(R, b, { idx: 0, along: 'x', len: b.w, cx, cz: cz + b.d / 2 + 1 }, h);
+      winFace(R, b, { idx: 1, along: 'x', len: b.w, cx, cz: cz - b.d / 2 - 1 }, h);
+      winFace(R, b, { idx: 2, along: 'z', len: b.d, cx: cx + b.w / 2 + 1, cz }, h);
+      winFace(R, b, { idx: 3, along: 'z', len: b.d, cx: cx - b.w / 2 - 1, cz }, h);
       R.setEmissive(0);
     }
     R.setEmissive(0.9);
     R.box(cx, h * 0.92, cz + b.d / 2 + 2, b.w * 0.6, 8, 3, b.neon);
+    R.box(cx, h * 0.92, cz - b.d / 2 - 2, b.w * 0.6, 8, 3, b.neon);
+    R.box(cx + b.w / 2 + 2, h * 0.92, cz, 3, 8, b.d * 0.6, b.neon);
+    R.box(cx - b.w / 2 - 2, h * 0.92, cz, 3, 8, b.d * 0.6, b.neon);
     R.setEmissive(0);
+    if (b.floors >= 8) {
+      R.setEmissive(1);
+      R.box(cx + b.w * 0.3, h + 10, cz + b.d * 0.3, 8, 8, 8, b.neon);
+      R.setEmissive(0);
+    }
     if (b.landmark === 'spire') {
       R.cyl(cx, h + 6, cz, 30, 90, '#0d1020', 8);
       R.setEmissive(1);
@@ -217,9 +253,20 @@ export function render3D(G, R) {
   R.setEmissive(0.7);
   R.flat(2000 - 130, 1900 - 6, 260, 12, 0.15, '#00e5ff');
   R.setEmissive(0);
+  for (const s of G.world.stalls) {
+    R.box(s.x, 10, s.z, 56, 20, 30, '#2a2118');
+    R.box(s.x, 24, s.z, 60, 5, 34, s.color);
+    R.box(s.x, 27, s.z, 30, 5, 34, '#f5f0e6');
+    R.setEmissive(0.9);
+    R.box(s.x, 32, s.z + 17, 44, 4, 2, s.neon);
+    R.setEmissive(0);
+    for (const gx of [-1, 1]) for (const gz of [-1, 1]) R.box(s.x + gx * 24, 6, s.z + gz * 12, 8, 8, 8, '#ffd23e');
+    R.box(s.x, 22, s.z, 40, 4, 20, s.neon);
+  }
   for (const t of G.world.trees) {
-    R.cyl(t.x, 0, t.z, 3 * t.s, 26 * t.s, '#0f2a1a', 6);
-    R.box(t.x, 34 * t.s, t.z, 26 * t.s, 18 * t.s, 26 * t.s, '#123f2a');
+    R.cyl(t.x, 0, t.z, 3 * t.s, 26 * t.s, '#24402e', 6);
+    R.box(t.x, 34 * t.s, t.z, 26 * t.s, 18 * t.s, 26 * t.s, '#1d6b3c');
+    R.box(t.x, 46 * t.s, t.z, 16 * t.s, 10 * t.s, 16 * t.s, '#2a8a4d');
   }
   for (const l of G.world.lamps) {
     R.box(l.x, 12, l.z, 3, 24, 3, '#2f3542');
@@ -227,10 +274,12 @@ export function render3D(G, R) {
     R.box(l.x, 26, l.z, 9, 3, 9, '#ffe66d');
     R.setEmissive(0);
     R.flat(l.x - 10, l.z - 10, 20, 20, 0.2, [1, 0.9, 0.5, 0.13]);
+    // Wet-road reflection: a long warm streak under each lamp.
+    R.flat(l.x - 5, l.z - 34, 10, 68, 0.18, [1, 0.85, 0.45, 0.08]);
   }
   for (const f of G.world.flyers) {
     const fx = f.x + Math.sin(time * 0.1 + f.phase) * 400;
-    R.box(fx, f.y, f.z, 40, 8, 14, '#232744', 0);
+    R.box(fx, f.y, f.z, 40, 8, 14, '#3a4266', 0);
     R.setEmissive(0.9);
     R.box(fx - 18, f.y, f.z, 4, 3, 12, f.color, 0);
     R.setEmissive(0);
@@ -240,18 +289,57 @@ export function render3D(G, R) {
     R.box(pl.x, 60, pl.z, 5, 120, 5, [c[0], c[1], c[2], 0.3]);
     R.flat(pl.x - 22, pl.z - 22, 44, 44, 0.16, PLACE_COLORS[key] || '#ecf0f1');
   }
+  // Sky: low warm sun, horizon glow bands and stars — drawn fog-free so the
+  // dusk actually shows instead of washing out to haze.
   const sunDir = sky.dir;
-  const sunC = [R.eye[0] + sunDir[0] * 2400, Math.max(200, R.eye[1] + sunDir[1] * 2400), R.eye[2] + sunDir[2] * 2400];
-  const sr = R.right, su = R.up, sc = 110;
-  R.setEmissive(0.6);
+  const sunY = Math.min(Math.max(200, R.eye[1] + sunDir[1] * 2400), R.eye[1] + 420);
+  const sunC = [R.eye[0] + sunDir[0] * 2400, sunY, R.eye[2] + sunDir[2] * 2400];
+  const sr = R.right, su = R.up;
+  R.flush();
+  R.setFog(1e9, 2e9);
+  const glow = (cx, cy, cz, w, hgt, color, emi) => {
+    R.setEmissive(emi);
+    R.quad(
+      [cx - sr[0] * w / 2 - su[0] * hgt / 2, cy - sr[1] * w / 2 - su[1] * hgt / 2, cz - sr[2] * w / 2 - su[2] * hgt / 2],
+      [cx + sr[0] * w / 2 - su[0] * hgt / 2, cy + sr[1] * w / 2 - su[1] * hgt / 2, cz + sr[2] * w / 2 - su[2] * hgt / 2],
+      [cx + sr[0] * w / 2 + su[0] * hgt / 2, cy + sr[1] * w / 2 + su[1] * hgt / 2, cz + sr[2] * w / 2 + su[2] * hgt / 2],
+      [cx - sr[0] * w / 2 + su[0] * hgt / 2, cy - sr[1] * w / 2 + su[1] * hgt / 2, cz - sr[2] * w / 2 + su[2] * hgt / 2],
+      color, sunDir,
+    );
+    R.setEmissive(0);
+  };
+  const gy = R.eye[1] + 60;
+  glow(sunC[0], gy, sunC[2], 2200, 220, [1, 0.5, 0.25, 0.14], 0.35);
+  glow(sunC[0], gy + 30, sunC[2], 1400, 150, [1, 0.35, 0.5, 0.16], 0.35);
+  glow(sunC[0], gy + 60, sunC[2], 700, 100, [1, 0.75, 0.45, 0.20], 0.35);
+  const sc = 95;
+  R.setEmissive(0.7);
   R.quad(
     [sunC[0] - sr[0] * sc - su[0] * sc, sunC[1] - sr[1] * sc - su[1] * sc, sunC[2] - sr[2] * sc - su[2] * sc],
     [sunC[0] + sr[0] * sc - su[0] * sc, sunC[1] + sr[1] * sc - su[1] * sc, sunC[2] + sr[2] * sc - su[2] * sc],
     [sunC[0] + sr[0] * sc + su[0] * sc, sunC[1] + sr[1] * sc + su[1] * sc, sunC[2] + sr[2] * sc + su[2] * sc],
     [sunC[0] - sr[0] * sc + su[0] * sc, sunC[1] - sr[1] * sc + su[1] * sc, sunC[2] - sr[2] * sc + su[2] * sc],
-    '#e8b4ff', sunDir,
+    '#ffcf9e', sunDir,
   );
   R.setEmissive(0);
+  if (G.timeOfDay > 0.55) {
+    R.setEmissive(0.9);
+    for (let i = 0; i < 70; i += 1) {
+      const a = i * 2.399, r = 900 + ((i * 137) % 500), y = 520 + ((i * 89) % 700);
+      const sx = R.eye[0] + Math.cos(a) * r, sz = R.eye[2] + Math.sin(a) * r;
+      const s2 = 5 + (i % 3) * 2;
+      R.quad(
+        [sx - sr[0] * s2 - su[0] * s2, y - sr[1] * s2 - su[1] * s2, sz - sr[2] * s2 - su[2] * s2],
+        [sx + sr[0] * s2 - su[0] * s2, y + sr[1] * s2 - su[1] * s2, sz + sr[2] * s2 - su[2] * s2],
+        [sx + sr[0] * s2 + su[0] * s2, y + sr[1] * s2 + su[1] * s2, sz + sr[2] * s2 + su[2] * s2],
+        [sx - sr[0] * s2 + su[0] * s2, y - sr[1] * s2 + su[1] * s2, sz - sr[2] * s2 + su[2] * s2],
+        [1, 1, 1, 0.75], sunDir,
+      );
+    }
+    R.setEmissive(0);
+  }
+  R.flush();
+  R.setFog(sky.fogNear, sky.fogFar);
   for (const car of G.cars) if (!car.hidden) drawCar(R, car, time);
   for (const ped of G.peds) if (!ped.hidden) drawPed(R, ped, time);
   drawPlayer(R, G, time);
@@ -279,6 +367,16 @@ export function render3D(G, R) {
     R.box(x, 6, z, 26, 6, 26, color, time * 1.5);
   };
   if (G.missions && G.missions.marker) marker(G.missions.marker.x, G.missions.marker.z, [1, 0.85, 0.2], 0);
+  if (G.race) {
+    const wp = G.race.waypoints[G.race.playerWpi % G.race.waypoints.length];
+    const dx = wp.x - G.player.x, dz = wp.z - G.player.z, dl = Math.hypot(dx, dz) || 1;
+    const px = -dz / dl, pz = dx / dl;
+    R.setEmissive(0.95);
+    for (const s of [-1, 1]) R.box(wp.x + px * 46 * s, 55, wp.z + pz * 46 * s, 14, 110, 14, '#ff2e88');
+    R.box(wp.x, 112, wp.z, 106, 8, 8, '#00e5ff');
+    R.setEmissive(0);
+    R.flat(wp.x - 60, wp.z - 60, 120, 120, 0.16, [1, 0.18, 0.53, 0.14]);
+  }
   if (G.side) {
     for (const pk of G.side.shards) {
       if (pk.got) continue;

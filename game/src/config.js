@@ -8,12 +8,12 @@ export const AVENUES = [400, 800, 1200, 1600, 2000, 2400, 2800];
 export const STREETS = [300, 700, 1100, 1500, 1900];
 export const ROAD_W = 110;
 export const CAM = {
-  foot: { dist: 170, height: 105 },
-  car: { dist: 235, height: 135 },
-  bike: { dist: 210, height: 120 },
+  foot: { dist: 130, height: 80 },
+  car: { dist: 185, height: 105 },
+  bike: { dist: 165, height: 95 },
 };
 export const PALETTE = {
-  ground: '#0b0d1a', road: '#161a2e', roadLine: '#3ee6ff', sidewalk: '#232744', curb: '#1a1e33',
+  ground: '#262c49', road: '#343b60', roadLine: '#3ee6ff', sidewalk: '#363d63', curb: '#232744',
   wall: '#1b1f38', glass: '#7de8ff', roof: '#2a2f4d',
   neonPink: '#ff2e88', neonCyan: '#00e5ff', neonGold: '#ffd23e', neonGreen: '#39ff88', neonPurple: '#b26bff',
   player: '#ffd23e', cop: '#1c4ed8', copCar: '#1e40af', gang: '#e74c3c',
@@ -43,7 +43,7 @@ export const TUNE = {
   armorPrice: 120, armorPack: 50, nitroPrice: 150, riflePrice: 600, sniperPrice: 900, batPrice: 150,
   enginePrice: 800, engineBonus: 60, punchDmg: 25, batDmg: 50,
   wantedDecaySight: 8, wantedDecayRate: 4, copFootSpeed: 210, copPunchDmg: 8,
-  trafficCount: 14, pedCount: 26, maxBullets: 64, maxParticles: 600,
+  trafficCount: 28, pedCount: 48, maxBullets: 64, maxParticles: 600,
   timeRate: 0.002, shardCount: 20, shardPay: 100, racePay: 600, trialPar: 75,
 };
 export const START = { x: 860, z: 1180, money: 200, ammo: 48 };

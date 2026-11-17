@@ -1,4 +1,4 @@
-import { AVENUES, STREETS, PALETTE, VEHICLES, VEHICLE_ORDER } from './config.js';
+import { AVENUES, STREETS, PALETTE, VEHICLES, VEHICLE_ORDER, ROAD_W, TUNE } from './config.js';
 import { dist, angleDiff, pick, clamp } from './random.js';
 import { pointInBuilding } from './world.js';
 import { damageCar, addParticles, addSkid } from './combat.js';
@@ -15,22 +15,32 @@ export function spawnCar(G, x, z, kind, driver) {
 }
 export function spawnTraffic(G) {
   const kinds = ['sedan', 'sport', 'taxi', 'van', 'truck'];
-  for (let i = 0; i < 14; i += 1) {
+  for (let i = 0; i < TUNE.trafficCount; i += 1) {
     const a = AVENUES[Math.floor(G.rng() * AVENUES.length)];
     const s = STREETS[Math.floor(G.rng() * STREETS.length)];
     const onAve = G.rng() < 0.5;
     const car = spawnCar(G, onAve ? a + (G.rng() < 0.5 ? -28 : 28) : 100 + G.rng() * 3000, onAve ? 100 + G.rng() * 2200 : s + (G.rng() < 0.5 ? -28 : 28), pick(G.rng, kinds), 'traffic');
     car.angle = onAve ? (G.rng() < 0.5 ? Math.PI / 2 : -Math.PI / 2) : (G.rng() < 0.5 ? 0 : Math.PI);
-    car.color = pick(G.rng, ['#c0392b', '#8e44ad', '#f7c948', '#16a085', '#7f8c8d', '#2980b9']);
+    car.color = pick(G.rng, ['#c0392b', '#8e44ad', '#f7c948', '#16a085', '#7f8c8d', '#2980b9', '#e67e22', '#ff2e88']);
     car.cruise = 180 + G.rng() * 160;
+  }
+  // Parked cars line the avenues so the streets never read empty, even
+  // between moving traffic. They are plain parked cars, never simulated.
+  for (let i = 0; i < 16; i += 1) {
+    const a = AVENUES[Math.floor(G.rng() * AVENUES.length)];
+    const z = 150 + G.rng() * 2100;
+    const side = G.rng() < 0.5 ? -1 : 1;
+    const car = spawnCar(G, a + side * (ROAD_W / 2 - 16), z, pick(G.rng, kinds), 'parked');
+    car.angle = side < 0 ? Math.PI / 2 : -Math.PI / 2;
+    car.color = pick(G.rng, ['#c0392b', '#8e44ad', '#f7c948', '#16a085', '#7f8c8d', '#2980b9', '#e67e22', '#ff2e88', '#00e5ff']);
   }
 }
 export function spawnPeds(G) {
-  for (let i = 0; i < 26; i += 1) {
+  for (let i = 0; i < TUNE.pedCount; i += 1) {
     G.peds.push({
       x: 100 + G.rng() * 3000, z: 100 + G.rng() * 2200, angle: 0, speed: 0,
       kind: 'walker', hp: 100, tx: 0, tz: 0, waitT: 0, fleeT: 0,
-      color: pick(G.rng, ['#e74c3c', '#3498db', '#f39c12', '#9b59b6', '#1abc9c']), seed: G.rng(),
+      color: pick(G.rng, ['#e74c3c', '#3498db', '#f39c12', '#9b59b6', '#1abc9c', '#ff2e88', '#00e5ff', '#ffd23e']), seed: G.rng(),
     });
   }
 }

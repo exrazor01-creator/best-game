@@ -1,7 +1,8 @@
 import { WORLD, AVENUES, STREETS, ROAD_W, PLACES, FLOOR_H } from './config.js';
 import { range, int, pick, clamp } from './random.js';
 const NEON = ['#ff2e88', '#00e5ff', '#ffd23e', '#39ff88', '#b26bff'];
-const WALLS = ['#1b1f38', '#232744', '#1e2340', '#2a1e3f', '#14263a'];
+const WALLS = ['#2a2f52', '#2e3454', '#33284f', '#26304f', '#1f2a4a', '#3a2a4d', '#2c3a5e'];
+const STALL_COLORS = ['#ff2e88', '#00e5ff', '#ffd23e', '#39ff88', '#b26bff', '#ff6b35'];
 export function districtAt(x, z) {
   if (x < 1000 && z < 1000) return 'residential';
   if (x >= 1000 && x < 2000 && z < 1000) return 'financial';
@@ -11,7 +12,7 @@ export function districtAt(x, z) {
   return 'neon';
 }
 export function buildWorld(rng) {
-  const buildings = [], trees = [], lamps = [], containers = [], flyers = [];
+  const buildings = [], trees = [], lamps = [], containers = [], flyers = [], stalls = [];
   const blocked = new Set();
   const nearRoad = (x, z) => AVENUES.some((a) => Math.abs(x - a) < ROAD_W / 2 + 60) || STREETS.some((s) => Math.abs(z - s) < ROAD_W / 2 + 60);
   for (let gx = 0; gx < 7; gx += 1) for (let gz = 0; gz < 5; gz += 1) {
@@ -36,12 +37,20 @@ export function buildWorld(rng) {
     if (d === 'residential') for (let i = 0; i < 2; i += 1) trees.push({ x: bx + 60 + rng() * 280, z: bz + 60 + rng() * 280, s: 0.8 + rng() * 0.5 });
     if (d === 'port') for (let i = 0; i < 5; i += 1) containers.push({ x: bx + 30 + rng() * 300, z: bz + 30 + rng() * 300, color: pick(rng, ['#e74c3c', '#f39c12', '#16a085', '#2980b9']) });
   }
-  buildings.push({ x: PLACES.tower.x - 90, z: PLACES.tower.z - 90, w: 180, d: 180, floors: 30, color: '#10142a', district: 'financial', neon: '#ff2e88', lit: 1, landmark: 'spire' });
-  buildings.push({ x: PLACES.lab.x - 80, z: PLACES.lab.z - 80, w: 160, d: 160, floors: 6, color: '#1a1030', district: 'neon', neon: '#b26bff', lit: 1, landmark: 'lab' });
-  buildings.push({ x: PLACES.club.x - 70, z: PLACES.club.z - 70, w: 140, d: 140, floors: 3, color: '#241031', district: 'neon', neon: '#ff2e88', lit: 1, landmark: 'club' });
+  buildings.push({ x: PLACES.tower.x - 90, z: PLACES.tower.z - 90, w: 180, d: 180, floors: 30, color: '#1a2048', district: 'financial', neon: '#ff2e88', lit: 1, landmark: 'spire' });
+  buildings.push({ x: PLACES.lab.x - 80, z: PLACES.lab.z - 80, w: 160, d: 160, floors: 6, color: '#2a1a4a', district: 'neon', neon: '#b26bff', lit: 1, landmark: 'lab' });
+  buildings.push({ x: PLACES.club.x - 70, z: PLACES.club.z - 70, w: 140, d: 140, floors: 3, color: '#3a1a4a', district: 'neon', neon: '#ff2e88', lit: 1, landmark: 'club' });
   for (const a of AVENUES) for (const s of STREETS) lamps.push({ x: a + 62, z: s + 62 });
-  for (let i = 0; i < 7; i += 1) flyers.push({ x: 300 + rng() * 2600, z: 200 + rng() * 1800, y: 260 + rng() * 160, speed: 60 + rng() * 80, phase: rng() * 6.28, color: pick(rng, NEON) });
-  return { buildings, trees, lamps, containers, flyers, blocked };
+  for (let i = 0; i < 14; i += 1) flyers.push({ x: 300 + rng() * 2600, z: 200 + rng() * 1800, y: 260 + rng() * 160, speed: 60 + rng() * 80, phase: rng() * 6.28, color: pick(rng, NEON) });
+  // Neon Row market: striped stalls with glowing signs along street 700 and
+  // avenue 2400, so the busiest district reads as a living street market.
+  const stallSpots = [
+    [2050, 640], [2180, 640], [2310, 640], [2440, 640], [2570, 640],
+    [2050, 780], [2180, 780], [2310, 780], [2440, 780],
+    [2340, 1000], [2340, 1150], [2460, 820],
+  ];
+  for (const [sx, sz] of stallSpots) stalls.push({ x: sx, z: sz, color: pick(rng, STALL_COLORS), neon: pick(rng, NEON), seed: rng() });
+  return { buildings, trees, lamps, containers, flyers, stalls, blocked };
 }
 export function pointInBuilding(G, x, z) {
   for (const b of G.world.buildings) {
