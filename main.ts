@@ -1,4 +1,4 @@
-// VOIDPULSE — entry program for best-game-01 (Node 22, standard library only).
+// NEON RELAY: LAST LIGHT — entry program for best-game-01 (Node 22, standard library only).
 // The game lives in game/ as plain static files a desktop browser loads offline
 // (game/index.html plus its ES modules, no library, no network request). This
 // program hands it in: it copies game/ and screenshots/ from beside this file

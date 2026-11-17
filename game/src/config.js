@@ -1,98 +1,73 @@
-// Every tuning number and colour in one place. The playfield is a fixed
-// 1280x720 logical area; the renderer scales it to the window, so no rule
-// below depends on the screen size.
-
-export const FIELD = { width: 1280, height: 720 };
-
-/** Playfield vertical bounds: the HUD strip (top) and dash/hint line (bottom). */
-export const PLAY_TOP = 80;
-export const PLAY_BOTTOM = 688;
-
-/** The simulation's fixed step, in seconds: 60 updates a second whatever the display's rate. */
+export const VIEW = { w: 1280, h: 800 };
+export const WORLD = { w: 3200, h: 2400 };
 export const STEP = 1 / 60;
-
-/** The wave whose clear wins the arena (endless mode continues past it). */
-export const VICTORY_WAVE = 10;
-
-export const PLAYER = {
-  radius: 14,
-  speed: 320,
-  maxHp: 100,
-  fireInterval: 0.22,
-  damage: 12,
-  bulletSpeed: 640,
-  bulletRadius: 4,
-  magnet: 90,
-  dashSpeed: 920,
-  dashTime: 0.16,
-  dashCooldown: 2.2,
-  invulnerable: 1.2,
-  critChance: 0.05,
-  critMultiplier: 2,
+export const FLOOR_H = 34;
+export const PLAYER_H = 36;
+export const GUN_H = 22;
+export const AVENUES = [400, 800, 1200, 1600, 2000, 2400, 2800];
+export const STREETS = [300, 700, 1100, 1500, 1900];
+export const ROAD_W = 110;
+export const CAM = {
+  foot: { dist: 170, height: 105 },
+  car: { dist: 235, height: 135 },
+  bike: { dist: 210, height: 120 },
 };
-
-/** Enemy kinds: how they look, move and fight. */
-export const ENEMIES = {
-  drifter: { radius: 14, hp: 18, speed: 88, damage: 8, xp: 1, score: 50, color: '#ff4fd8' },
-  mite: { radius: 8, hp: 6, speed: 175, damage: 5, xp: 1, score: 25, color: '#ff8ad8' },
-  bulwark: { radius: 26, hp: 95, speed: 46, damage: 16, xp: 3, score: 150, color: '#ff534b' },
-  splitter: { radius: 18, hp: 32, speed: 82, damage: 10, xp: 2, score: 100, color: '#ff9a3d' },
-  stinger: { radius: 13, hp: 24, speed: 72, damage: 8, xp: 2, score: 120, color: '#b46bff' },
-  elite: { radius: 40, hp: 460, speed: 56, damage: 22, xp: 10, score: 1000, color: '#ffd23d' },
-};
-
-/** Which kinds may spawn from which wave on. */
-export const UNLOCK_WAVE = { drifter: 1, splitter: 2, bulwark: 3, stinger: 4, elite: 5 };
-
-export const WAVE = {
-  /** Enemies in wave n (before the elite, which is extra). */
-  budget: (n) => 5 + n * 3,
-  /** Seconds between spawns in wave n. */
-  spawnInterval: (n) => Math.max(0.28, 1.15 - n * 0.07),
-  /** Enemy health multiplier in wave n. */
-  hpScale: (n) => 1 + (n - 1) * 0.18,
-  /** Enemy speed multiplier in wave n (capped). */
-  speedScale: (n) => 1 + Math.min(0.35, (n - 1) * 0.025),
-  /** Breather, in seconds, between waves. */
-  breather: 3,
-  /** Score bonus for clearing wave n. */
-  clearBonus: (n) => 100 * n,
-};
-
-/** Shards needed to reach level L (L starts at 1). */
-export const xpForLevel = (level) => 10 + (level - 1) * 8;
-
-export const COMBO = {
-  /** Seconds a kill stays on the combo clock. */
-  window: 3,
-  /** Multiplier added per kill in the chain. */
-  perKill: 0.1,
-  /** Multiplier cap. */
-  cap: 5,
-};
-
-/** How many of each thing can exist at once; pools are allocated once, at boot. */
-export const POOL = { bullets: 256, enemies: 160, gems: 200, particles: 420, floaters: 48 };
-
 export const PALETTE = {
-  backdrop: '#070a16',
-  nebulaA: '#141b33',
-  nebulaB: '#1d1440',
-  grid: '#131a2e',
-  arenaEdge: '#2a3a66',
-  player: '#4df3ff',
-  bullet: '#8ef7ff',
-  enemyBullet: '#ff5df2',
-  gem: '#7dff8a',
-  text: '#eef1f5',
-  muted: '#8b93a3',
-  panel: '#141a2e',
-  panelEdge: '#2a3a66',
-  danger: '#ff534b',
-  gold: '#ffd23d',
+  ground: '#0b0d1a', road: '#161a2e', roadLine: '#3ee6ff', sidewalk: '#232744', curb: '#1a1e33',
+  wall: '#1b1f38', glass: '#7de8ff', roof: '#2a2f4d',
+  neonPink: '#ff2e88', neonCyan: '#00e5ff', neonGold: '#ffd23e', neonGreen: '#39ff88', neonPurple: '#b26bff',
+  player: '#ffd23e', cop: '#1c4ed8', copCar: '#1e40af', gang: '#e74c3c',
+  sedan: '#c0392b', sport: '#8e44ad', truck: '#7f8c8d', van: '#16a085', taxi: '#f7c948',
 };
-
-export const FONT = 'system-ui, -apple-system, "Segoe UI", sans-serif';
-
-/** Where the best score is kept between visits (this browser only). */
-export const BEST_KEY = 'voidpulse.best';
+export const VEHICLES = {
+  vortex: { name: 'VORTEX GT', kind: 'hypercar', max: 880, accel: 820, turn: 3.3, hp: 90, r: 24, color: '#ff2e88', price: 0, desc: 'Hypercar — the fastest thing in Nova City.' },
+  streethawk: { name: 'STREETHAWK', kind: 'street', max: 740, accel: 700, turn: 3.0, hp: 100, r: 24, color: '#00e5ff', price: 1500, desc: 'Street racer — balanced, quick off the line.' },
+  neonbike: { name: 'NEON BIKE', kind: 'bike', max: 800, accel: 860, turn: 3.6, hp: 60, r: 15, color: '#39ff88', price: 1200, desc: 'Motorcycle — razor handling, thin armor.' },
+  ironclad: { name: 'IRONCLAD', kind: 'armored', max: 620, accel: 520, turn: 2.4, hp: 220, r: 27, color: '#8d9db6', price: 2200, desc: 'Armored hauler — slow, nearly unkillable.' },
+  voltspark: { name: 'VOLT SPARK', kind: 'electric', max: 840, accel: 940, turn: 3.1, hp: 85, r: 24, color: '#b26bff', price: 2600, desc: 'Electric sports car — instant torque, silent.' },
+  driftking: { name: 'DRIFT KING', kind: 'drift', max: 720, accel: 660, turn: 3.5, hp: 95, r: 24, color: '#ffd23e', price: 1800, desc: 'Drift machine — slides through corners.' },
+  hauler: { name: 'HAULER', kind: 'truck', max: 560, accel: 460, turn: 2.0, hp: 200, r: 28, color: '#e67e22', price: 1400, desc: 'Heavy truck — plows through traffic.' },
+  aerocab: { name: 'AERO CAB', kind: 'hover', max: 780, accel: 720, turn: 3.2, hp: 90, r: 24, color: '#7de8ff', price: 2000, desc: 'Hover taxi — floats, corners flat.' },
+};
+export const VEHICLE_ORDER = ['vortex', 'streethawk', 'neonbike', 'ironclad', 'voltspark', 'driftking', 'hauler', 'aerocab'];
+export const WEAPONS = {
+  pistol: { name: 'BLASTER', dmg: 34, delay: 0.22, pellets: 1, spread: 0.05, mag: 0 },
+  rifle: { name: 'PULSE RIFLE', dmg: 22, delay: 0.11, pellets: 1, spread: 0.09, mag: 30 },
+  sniper: { name: 'RAIL SNIPER', dmg: 120, delay: 1.1, pellets: 1, spread: 0.01, mag: 5 },
+};
+export const WEAPON_ORDER = ['pistol', 'rifle', 'sniper'];
+export const TUNE = {
+  walkSpeed: 240, sprintMul: 1.5, playerRadius: 13, playerHp: 100,
+  carBrake: 950, carReverseMax: 220, bulletSpeed: 950, fireDelay: 0.22, punchDelay: 0.45,
+  ammoStart: 48, ammoPrice: 40, ammoPack: 24, medPrice: 60, repairPrice: 100,
+  armorPrice: 120, armorPack: 50, nitroPrice: 150, riflePrice: 600, sniperPrice: 900, batPrice: 150,
+  enginePrice: 800, engineBonus: 60, punchDmg: 25, batDmg: 50,
+  wantedDecaySight: 8, wantedDecayRate: 4, copFootSpeed: 210, copPunchDmg: 8,
+  trafficCount: 14, pedCount: 26, maxBullets: 64, maxParticles: 600,
+  timeRate: 0.002, shardCount: 20, shardPay: 100, racePay: 600, trialPar: 75,
+};
+export const START = { x: 860, z: 1180, money: 200, ammo: 48 };
+export const PLACES = {
+  garage: { x: 800, z: 1180, name: 'Rook\'s Garage' },
+  tower: { x: 1800, z: 1300, name: 'Omnidyne Spire' },
+  lab: { x: 2800, z: 300, name: 'Omnidyne Lab' },
+  arena: { x: 2400, z: 1900, name: 'Neon Arena' },
+  neon: { x: 2200, z: 700, name: 'Neon Row' },
+  port: { x: 400, z: 1900, name: 'The Port' },
+  tunnel: { x: 2000, z: 1900, name: 'Underpass' },
+  mountain: { x: 2800, z: 300, name: 'Skyline Pass' },
+  hospital: { x: 2400, z: 700, name: 'Nova Med' },
+  ammoShop: { x: 1200, z: 1500, name: 'Black Market Arms' },
+  repairShop: { x: 2000, z: 1500, name: 'Pit Stop' },
+  hideout: { x: 400, z: 300, name: 'The Relay Hideout' },
+  raceStart: { x: 800, z: 1900, name: 'Race Start' },
+  club: { x: 2200, z: 1100, name: 'Club Volt' },
+};
+export const MISSION_REWARDS = [300, 450, 600, 550, 900, 800, 700, 1200, 900, 1100, 1800, 6000];
+export const MISSION_COUNT = 12;
+export const RACE_COURSE = [
+  { x: 800, z: 1900 }, { x: 2400, z: 1900 }, { x: 2400, z: 300 }, { x: 800, z: 300 },
+];
+export const ARENA_COURSE = [
+  { x: 2400, z: 1740 }, { x: 2560, z: 1900 }, { x: 2400, z: 2060 }, { x: 2240, z: 1900 },
+];

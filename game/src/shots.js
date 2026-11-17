@@ -1,79 +1,69 @@
-// The screenshot scenes behind ?shot=start|play|levelup|end. Each one plays
-// the real rules forward from a fresh world for a fixed number of steps,
-// steered by the autopilot, so the frame is what a short game really looks
-// like and the same seed always gives the same frame.
-
-import { PLAY_BOTTOM, PLAY_TOP, STEP } from './config.js';
-import { EVENT_LEVELUP, EVENT_OVER, EVENT_VICTORY } from './world.js';
+import { STEP } from './config.js';
 import { autopilot } from './autopilot.js';
-import {
-  SCREEN_LEVELUP,
-  SCREEN_OVER,
-  SCREEN_PLAY,
-  SCREEN_TITLE,
-  SCREEN_VICTORY,
-} from './render.js';
-
-const START_SECONDS = 4;
-const PLAY_SECONDS = 32;
-const LEVELUP_LIMIT_SECONDS = 90;
-const END_LIMIT_SECONDS = 600;
-const SAMPLE = STEP;
-
-/**
- * Set `world` to the named scene (start, play, levelup or end; any other name
- * is start) and return the screen to draw over it and the best score to show.
- */
-export function stageShot(name, world) {
-  world.reset();
-  if (name !== 'play' && name !== 'levelup' && name !== 'end') {
-    for (let index = 0; index < START_SECONDS / SAMPLE; index += 1) {
-      world.step(SAMPLE, null, true);
-    }
-    return { screen: SCREEN_TITLE, best: 0 };
+import { startMission, advanceDialog } from './missions.js';
+function skipDialog(G) {
+  let guard = 0;
+  while (G.state === 'dialog' && guard < 10) { advanceDialog(G); guard += 1; }
+}
+// Drive the real game with the autopilot for up to `seconds`, stopping early
+// if the mission advances, the state leaves 'playing', or the player dies,
+// so the staged frame is always mid-action, never the next mission.
+// Input is cleared on exit so the player does not keep walking after staging.
+function driveFor(G, stepFn, seconds, target) {
+  const startIdx = G.missions ? G.missions.index : -1;
+  const steps = Math.floor(seconds / STEP);
+  for (let i = 0; i < steps; i += 1) {
+    autopilot(G, target);
+    stepFn(STEP);
+    if (G.state !== 'playing') break;
+    if (G.missions && G.missions.index !== startIdx) break;
+    if (G.player.hp <= 0) break;
   }
-
-  const careful = name !== 'end';
-  const limit = name === 'end' ? END_LIMIT_SECONDS : name === 'levelup' ? LEVELUP_LIMIT_SECONDS : PLAY_SECONDS;
-  let screen = SCREEN_PLAY;
-  for (let index = 0; index < limit / SAMPLE; index += 1) {
-    const input = autopilot(world.state, careful);
-    const events = world.step(SAMPLE, input, false);
-    if (events & EVENT_OVER) {
-      screen = SCREEN_OVER;
-      break;
-    }
-    if (name === 'levelup' && events & EVENT_LEVELUP) {
-      screen = SCREEN_LEVELUP;
-      break;
-    }
-    if (events & EVENT_VICTORY) {
-      screen = SCREEN_VICTORY;
-      break;
-    }
-    if (name === 'play' && world.state.pendingLevelUps > 0) {
-      // A level-up would pause real play; for the play scene, take the first
-      // card and keep going so the frame stays mid-action.
-      world.applyUpgrade(0);
-    }
+  G.input.keys.clear();
+  G.input.mouse.down = false;
+}
+export function stageShot(name, G, stepFn) {
+  G.timeOfDay = 0.55;
+  if (name === 'hero') {
+    // Skyline hero: hypercar on avenue 1600 driving north toward the
+    // financial district towers, nitro on, camera behind the car.
+    startMission(G, 0);
+    skipDialog(G);
+    const car = G.cars.find((c) => c.kind === 'vortex');
+    if (car) { G.player.x = car.x; G.player.z = car.z; G.player.inCar = car; car.driver = 'player'; car.nitro = 3; }
+    G.player.x = 1600; G.player.z = 2000;
+    if (G.player.inCar) { G.player.inCar.x = 1600; G.player.inCar.z = 2000; G.player.inCar.angle = -Math.PI / 2; }
+    driveFor(G, stepFn, 1, { x: 1600, z: 1100 });
+    return { screen: 'playing' };
   }
-  if (name === 'play' && screen === SCREEN_PLAY) {
-    // Hunt for a busy mid-wave frame: skip wave banners and breathers.
-    for (let index = 0; index < 10 / SAMPLE; index += 1) {
-      const s = world.state;
-      const activeEnemies = s.enemies.filter((e) => e.active).length;
-      const p = s.player;
-      const framed = p.x > 180 && p.x < 1100 && p.y > PLAY_TOP + 60 && p.y < PLAY_BOTTOM - 60;
-      if (s.waveBanner <= 0 && !s.betweenWaves && activeEnemies >= 5 && framed) break;
-      const input = autopilot(s, careful);
-      const events = world.step(SAMPLE, input, false);
-      if (events & EVENT_OVER) {
-        screen = SCREEN_OVER;
-        break;
-      }
-      if (s.pendingLevelUps > 0) world.applyUpgrade(0);
-    }
+  if (name === 'race') {
+    // Mid-race: Neon Trial, first straight east along street 1900 with
+    // nitro, JINX racing behind. 3s keeps the car on the opening straight.
+    startMission(G, 2);
+    skipDialog(G);
+    const car = G.cars.find((c) => c.kind === 'vortex');
+    if (car) { G.player.x = car.x; G.player.z = car.z; G.player.inCar = car; car.driver = 'player'; car.nitro = 3; }
+    G.player.x = 800; G.player.z = 1900;
+    if (G.player.inCar) { G.player.inCar.x = 800; G.player.inCar.z = 1900; G.player.inCar.angle = 0; }
+    driveFor(G, stepFn, 2, null);
+    return { screen: 'playing' };
   }
-  const best = world.state.score;
-  return { screen, best };
+  if (name === 'action') {
+    // Mid-combat: The Informant, on foot on street 700 west of Neon Row,
+    // autopilot firing at the closing Chrome Vipers. The player stands on
+    // the open road (backing up stays on the street, so the chase camera
+    // never gets pinned against a building), and the gang is toughened for
+    // staging so the fight is still live when the frame is taken.
+    startMission(G, 3);
+    skipDialog(G);
+    G.player.x = 2000; G.player.z = 700;
+    G.player.ammo = 200;
+    for (const ped of G.peds) { if (ped.kind === 'gang') { ped.hp = 300; ped.maxHp = 300; } }
+    driveFor(G, stepFn, 2.5, null);
+    return { screen: 'playing' };
+  }
+  G.cameraOverride = { eye: [1600, 500, 2300], target: [1600, 40, 1100] };
+  G.timeOfDay = 0.85;
+  for (let i = 0; i < 60; i += 1) stepFn(STEP);
+  return { screen: 'playing' };
 }
